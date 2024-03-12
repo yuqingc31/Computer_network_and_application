@@ -36,15 +36,16 @@ int main(int argc, char *argv[])
   /* structure to hold server's and client addresses, respectively */
   struct sockaddr_in server_address, client_address;
 
-  int listen_socket = -1;    // 用于侦听和接受新请求的套接字
-  int connection_socket = -1;  // 保存与客户端的连接的套接字
-  int port = 0;   // 用于保存服务器监听的端口号
+  // listening and accepting new requests
+  int listen_socket = -1;
+  // holds the connection to the client
+  int connection_socket = -1;
+  int port = 0;
 
   /* id of child process to handle request */
-  pid_t pid = 0;   // 用于保存子进程的ID，用于处理客户端的请求
+  pid_t pid = 0;
 
-  char response_buffer[MAX_HTTP_RESPONSE_SIZE] = "";   // 用于保存服务器将要发送回客户端的响应内容
-  // 用于保存将要发送给客户端的HTTP响应的状态码和短语
+  char response_buffer[MAX_HTTP_RESPONSE_SIZE] = "";
   int status_code = -1;
   char *status_phrase = "";
 
@@ -78,9 +79,14 @@ int main(int argc, char *argv[])
 
   /* 2) Set the values for the server address structure */
   /* START CODE SNIPPET 2 */
-  server_address. sin_family = AF_INET;   // 设置地址族
-  server_address. sin_port = htons(port);   // 设置端口号
-  server_address. sin_addr. s_addr = INADDR_ANY;   // INADDR_ANY表示服务器将接受任何IP地址的连接
+
+  // Set the address family
+  server_address.sin_family = AF_INET;   
+  // set the port number
+  server_address.sin_port = htons(port);  
+  // set the address to any interface
+  server_address.sin_addr.s_addr = INADDR_ANY;
+
   /* END CODE SNIPPET 2 */
 
   /* 3) Bind the socket to the address information set in server_address */
@@ -90,10 +96,8 @@ int main(int argc, char *argv[])
 
   /* 4) Start listening for connections */
   /* START CODE SNIPPET 4 */
-
-  // 接受方法将阻塞，直到建立连接。
+  // QLEN is the size of request queue
   listen(listen_socket, QLEN);
-
   /* END CODE SNIPPET 4 */
 
   /* Main server loop
@@ -103,13 +107,7 @@ int main(int argc, char *argv[])
   {
     /* 5) Accept a connection */
     /* START CODE SNIPPET 5 */
-    connection_socket = accept (listen_socket, NULL, NULL ) ;
-    // socklen_t client_address_length = sizeof(client_address);
-    // connection_socket = accept(listen_socket, (struct sockaddr *) &client_address, &client_address_length);
-    // if (connection_socket < 0) {
-    //     perror("Error accepting connection");
-    //     exit(EXIT_FAILURE);
-    // }
+    connection_socket = accept(listen_socket, NULL, NULL);
     /* END CODE SNIPPET 5 */
 
     /* Fork a child process to handle this request */
@@ -134,39 +132,35 @@ int main(int argc, char *argv[])
        * see helper.h and httpreq.h                      
        */
       /* START CODE SNIPPET 6 */
+      // Parsing HTTP requests received from connection_socket and fills in new_request
       Parse_HTTP_Request(connection_socket, &new_request);
       /* END CODE SNIPPET 6 */
 
       /* 7) Decide which status_code and reason phrase to return to client */
       /* START CODE SNIPPET 7 */
-      
-      // 如果找到请求的资源
+      // The requested resource is found
       if (Is_Valid_Resource(new_request.URI)) {
         status_code = 200;
         status_phrase = "OK";
+        if (strcmp(new_request.method, "HEAD") == 0 || strcmp(new_request.method, "GET") == 0){
+          status_code = 200;
+          status_phrase = "OK";
+        }else {
+          status_code = 501;
+          status_phrase = "Not Implemented";
+        }
       } 
-      // 如果找不到请求的资源
+      // The requested resource is not found
       else if(!Is_Valid_Resource(new_request.URI)){
         status_code = 404;
         status_phrase = "Not Found";
       }
-      // 如果请求是HEAD 
-      else if (strcmp(new_request.method, "HEAD") == 0) {
-        status_code = 200;
-        status_phrase = "OK";
-      } 
-      // 如果请求的方法未实现
-      else if (!strcmp(new_request.method, "HEAD") == 0){
-        status_code = 501;
-        status_phrase = "Not Implemented";
-      } 
-      // 如果请求的资源无效
+      // The client sent an invalid request
       else {
-        status_code = 502;
-        status_phrase = "Bad Gateway";
+        status_code = 400;
+        status_phrase = "Bad Request";
       }
 
-      
       /* END CODE SNIPPET 7 */
 
       /* 8) Set the reply message to the client
@@ -192,6 +186,7 @@ int main(int argc, char *argv[])
        * server send an entity body?
        */
       /* START CODE SNIPPET 10 */
+      // if the request method is HEAD
       if (strcmp(new_request.method, "HEAD") == 0) {
         is_ok_to_send_resource = false;
       } else if (status_code == 200) {
@@ -249,3 +244,9 @@ int main(int argc, char *argv[])
     waitpid(-1, NULL, WNOHANG);
   }
 }
+
+// gcc helpers.c web_server.c -o web_server
+// ./web_server 8080
+// telnet localhost 8080
+// GET /index.html HTTP/1.0
+// HEAD /index.html HTTP/1.0
