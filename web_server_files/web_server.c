@@ -81,9 +81,9 @@ int main(int argc, char *argv[])
   /* START CODE SNIPPET 2 */
 
   // Set the address family
-  server_address.sin_family = AF_INET;   
+  server_address.sin_family = AF_INET;
   // set the port number
-  server_address.sin_port = htons(port);  
+  server_address.sin_port = htons(port);
   // set the address to any interface
   server_address.sin_addr.s_addr = INADDR_ANY;
 
@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
       /* We are now in the child process */
 
       /* Close the listening socket
-       * The child process does not need access to listen_socket 
+       * The child process does not need access to listen_socket
        */
       if (close(listen_socket) < 0)
       {
@@ -129,7 +129,7 @@ int main(int argc, char *argv[])
       struct http_request new_request;
       /* 6) call helper function to read the request
        * this will fill in the struct new_request for you
-       * see helper.h and httpreq.h                      
+       * see helper.h and httpreq.h
        */
       /* START CODE SNIPPET 6 */
       // Parsing HTTP requests received from connection_socket and fills in new_request
@@ -138,28 +138,38 @@ int main(int argc, char *argv[])
 
       /* 7) Decide which status_code and reason phrase to return to client */
       /* START CODE SNIPPET 7 */
-      // The requested resource is found
-      if (Is_Valid_Resource(new_request.URI)) {
-        status_code = 200;
-        status_phrase = "OK";
-        if (strcmp(new_request.method, "HEAD") == 0 || strcmp(new_request.method, "GET") == 0){
+      // if the request method is HEAD
+      if(strcmp(new_request.method, "HEAD") == 0 || strcmp(new_request.method, "GET") == 0) {
+        // handle when the resource is valid
+        if(Is_Valid_Resource (new_request.URI)) {
           status_code = 200;
           status_phrase = "OK";
-        }else {
-          status_code = 501;
-          status_phrase = "Not Implemented";
         }
-      } 
-      // The requested resource is not found
-      else if(!Is_Valid_Resource(new_request.URI)){
-        status_code = 404;
-        status_phrase = "Not Found";
+        // when the request resource is invalid
+        else{
+          status_code = 404;
+          status_phrase = "Not Found";
+        }
       }
-      // The client sent an invalid request
-      else {
+      else if (
+        strcmp (new_request.method, "PUT") == 0
+        || strcmp (new_request.method, "DELETE") == 0
+        || strcmp (new_request.method, "LINK") == 0
+        || strcmp (new_request.method, "UNLINK") == 0
+        || strcmp (new_request.method, "PUT") == 0
+        )
+      {
+        status_code = 501;
+        status_phrase = "Not Implemented";
+      }
+
+      else
+      {
         status_code = 400;
         status_phrase = "Bad Request";
       }
+      
+      
 
       /* END CODE SNIPPET 7 */
 
@@ -182,21 +192,28 @@ int main(int argc, char *argv[])
       /* END CODE SNIPPET 9 */
 
       bool is_ok_to_send_resource = false;
+      bool is_ok_to_send_headers = false;
       /* 10) Send resource (if requested) under what condition will the
        * server send an entity body?
        */
       /* START CODE SNIPPET 10 */
       // if the request method is HEAD
       if (strcmp(new_request.method, "HEAD") == 0) {
-        is_ok_to_send_resource = false;
-      } else if (status_code == 200) {
-        is_ok_to_send_resource = true;
+        if( Is_Valid_Resource(new_request.URI) ) {
+          is_ok_to_send_headers = true;
+        }
+      }else if (strcmp(new_request.method, "GET") == 0) {
+        if( Is_Valid_Resource(new_request.URI) ) {
+          is_ok_to_send_resource = true;
+        }
       }
       /* END CODE SNIPPET 10 */
 
       if (is_ok_to_send_resource)
       {
         Send_Resource(connection_socket, new_request.URI);
+      }else if(is_ok_to_send_headers){
+        Send_Resource_HEAD(connection_socket, new_request.URI);
       }
       else
       {
@@ -207,11 +224,12 @@ int main(int argc, char *argv[])
          */
         /* START CODE SNIPPET 11 */
         send(connection_socket, "\r\n\r\n", strlen("\r\n\r\n"), 0);
+        // Send_Resource_HEAD(connection_socket, new_request.URI);
         /* END CODE SNIPPET 11 */
       }
 
       /* Child's work is done
-       * Close remaining descriptors and exit 
+       * Close remaining descriptors and exit
        */
       if (connection_socket >= 0)
       {
@@ -229,7 +247,7 @@ int main(int argc, char *argv[])
 
     /* Back in parent process
      * Close parent's reference to connection socket,
-     * then back to top of loop waiting for next request 
+     * then back to top of loop waiting for next request
      */
     if (connection_socket >= 0)
     {
@@ -250,3 +268,5 @@ int main(int argc, char *argv[])
 // telnet localhost 8080
 // GET /index.html HTTP/1.0
 // HEAD /index.html HTTP/1.0
+// DELETE /index.html HTTP/1.0
+// HTTP/1.0 GET /index.html
