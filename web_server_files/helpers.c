@@ -219,3 +219,74 @@ void Send_Resource(int socket, char * URI) {
   puts("\nfinished reading file\n");
   fclose(file);
 }
+
+
+
+
+
+// only get the headers and send to the client
+void Send_Resource_HEAD(int socket, char * URI) {
+
+  char * server_directory,  * resource;
+  char * location;
+
+  /* set the root server directory */
+
+  if ( (server_directory = (char *) malloc(PATH_MAX)) != NULL)
+    getcwd(server_directory, PATH_MAX);
+
+  /* remove http://domain/ from URI */
+  resource = strstr(URI, "http://");
+  if (resource == NULL) {
+    /* no http:// check if first character is /, if not add it */
+    if (URI[0] != '/')
+      resource = strcat(URI, "/");
+    else 
+      resource = URI;
+  }
+  else
+    /* if http:// resource must start with '/' */
+    resource = strchr(resource, '/');
+
+  /* append root server directory *
+   * for example if request is for /images/myphoto.jpg          *
+   * and directory for server resources is /var/www/            *
+   * then the resource location is /var/www/images/myphoto.jpg  */
+
+  strcat(server_directory, RESOURCE_PATH);
+  location = strcat(server_directory, resource);
+  /* open file and send contents on socket */
+
+  FILE * file = fopen(location, "r");
+
+  if (file < 0) {
+    fprintf(stderr, "Error opening file.\n");
+    exit(EXIT_FAILURE);
+  }
+
+  char c;
+  long sz;
+  char content_header[MAX_HEADER_LENGTH];
+  
+  /* get size of file for content_length header */
+  fseek(file, 0L, SEEK_END);
+  sz = ftell(file);
+  rewind(file);
+
+  sprintf(content_header, "Content-Length: %ld\r\n\r\n", sz);
+  printf("Sending headers: %s\n", content_header);
+  send(socket, content_header, strlen(content_header), 0);
+
+  // printf("Sending file contents of %s\n", location);
+  free(server_directory);
+
+  // while ( (c = fgetc(file)) != EOF ) {
+  //   if ( send(socket, &c, 1, 0) < 1 ) {
+  //     fprintf(stderr, "Error sending file.");
+  //     exit(EXIT_FAILURE);
+  //   }
+  //   printf("%c", c);
+  // }
+  // puts("\nfinished reading file\n");
+  fclose(file);
+}
