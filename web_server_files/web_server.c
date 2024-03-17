@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
         }
       }
       else if (
-        strcmp (new_request.method, "PUT") == 0
+        strcmp (new_request.method, "POST") == 0
         || strcmp (new_request.method, "DELETE") == 0
         || strcmp (new_request.method, "LINK") == 0
         || strcmp (new_request.method, "UNLINK") == 0
