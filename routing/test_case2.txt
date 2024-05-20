@@ -1,0 +1,62 @@
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+K
+L
+M
+N
+O
+P
+Q
+R
+S
+T
+LINKSTATE
+A-B 2
+A-C 4
+B-C 1
+B-D 7
+C-D 3
+C-E 5
+D-E 2
+D-F 6
+E-F 4
+E-G 3
+F-G 1
+F-H 9
+G-H 8
+G-I 4
+H-I 5
+H-J 3
+I-J 2
+I-K 6
+J-K 7
+J-L 5
+K-L 3
+K-M 2
+L-M 1
+L-N 8
+M-N 9
+M-O 5
+N-O 7
+N-P 4
+O-P 6
+O-Q 3
+P-Q 2
+P-R 5
+Q-R 1
+Q-S 9
+R-S 8
+R-T 4
+S-T 7
+UPDATE
+A-B 5
+B-D -1
+END

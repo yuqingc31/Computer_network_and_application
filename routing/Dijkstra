@@ -1,0 +1,367 @@
+#!/usr/bin/env python3
+import math
+
+class Path:
+    def __init__(self, node1, node2, weight):
+        """
+        Initializes the path object.
+
+        Parameters:
+            node1 (str): start node name.
+            node2 (str): name of the destination node.
+            weight (int): Weight of the path.
+        """
+        self.node1 = node1
+        self.node2 = node2
+        self.weight = weight
+    
+class Node:
+    def __init__(self, name, neighbourTable = None, routingTable = None):
+        """
+        Initializes the node object.
+
+        Parameters:
+            name (str): name of the node.
+            neighborTable (dict): neighbor table, records the nodes adjacent to this node and their weights.
+            routingTable (dict): routing table, records the shortest paths and distances to other nodes.
+        """
+        self.name = name
+        # The initial value of both tables is null, and if it is null, it defaults to equal {}
+        if neighbourTable is None:
+            neighbourTable = {}
+        self.neighbourTable = neighbourTable
+        if routingTable is None:
+            routingTable = {}
+        self.routingTable = routingTable
+
+def update_nodeset(node_set,new_node):
+    """
+    Updates the node information in the node collection.
+
+    Parameters:
+        node_set (list): node set.
+        new_node (Path): new path object.
+
+    Returns:
+        list: updated node set.
+    """
+    # 1. update the node's neighbourTable
+    for node in node_set:
+        if node.name == new_node.node1:
+            node.neighbourTable[new_node.node2] = new_node.weight
+        if node.name == new_node.node2:
+            node.neighbourTable[new_node.node1] = new_node.weight
+    # 2. update the node's routingTable
+    if new_node.weight == math.inf:
+        for node in node_set:
+            for key in node.routingTable:
+                if node.routingTable[key][0] == new_node.node1 or node.routingTable[key][0] == new_node.node2:
+                    node.routingTable[key] = ["",math.inf]
+    return node_set
+
+def dijkstra(starting_node, graph):
+    """
+    Uses the Dijkstra algorithm to compute the shortest path from the specified node to other nodes.
+
+    Parameters:
+        starting_node (int): index of the starting node.
+        graph (list): the adjacency matrix of the network.
+
+    Returns:
+        tuple: A tuple containing the shortest path and information about the predecessor nodes.
+    """
+    # Put the first nodes into the selected node set, and the ones that are not selected into the remaining node set.
+    selected = [starting_node]
+    remain_nodes = [x for x in range(len(graph)) if x != starting_node]
+    shortest_distance = graph[starting_node]
+    pre_nodes={} # previous node
+    # In the set of unvisited nodes, select the node with the smallest distance and add it to the set of visited nodes.
+    while len(remain_nodes):
+        index = remain_nodes[0]
+        for i in remain_nodes:
+            if shortest_distance[i] < shortest_distance[index]:
+                index = i
+        remain_nodes.remove(index)
+        selected.append(index)
+        # check whether a smaller distance can be obtained by passing through the node with the smallest distance
+        for i in remain_nodes:
+            if shortest_distance[index]+graph[index][i] < shortest_distance[i]:
+                # if so, update the distance and the previous node
+                shortest_distance[i] = shortest_distance[index] + graph[index][i]
+                pre_nodes[i] = index
+    return(shortest_distance,pre_nodes)
+
+def update_shortest_path(nodes_set,LSDB,names):
+    """
+    Updates the shortest path information for a node in the node collection.
+
+    Parameters:
+        nodes_set (list): nodes set.
+        LSDB (list): Link State Database.
+        names (list): list of node names.
+
+    Returns:
+        list: updated nodes set.
+    """
+    # Update the neighbor table
+    for node in nodes_set:
+        for i in node.neighbourTable:
+                node.routingTable[i][1] = node.neighbourTable[i]
+                node.routingTable[i][0] = i
+
+    # Convert LSDB to matrix
+    matrix = [[math.inf for i in range(len(names))] for j in range(len(names))]
+    for x in LSDB:
+        matrix[names.index(x.node1)][names.index(x.node2)] = x.weight
+        matrix[names.index(x.node2)][names.index(x.node1)] = x.weight
+    
+    # Iterate over each node, perform shortest path calculations, and update routing information
+    for node in range(len(names)):
+        shortest_paths = dijkstra(node,matrix)
+        if len(shortest_paths) != 0:
+            for k in shortest_paths[1].keys():
+                value = shortest_paths[0][k]
+                node_from = shortest_paths[1].get(k)
+                # Update the shortest path information in the routing table
+                nodes_set[node].routingTable[names[k]] = [names[node_from],value]
+        else:
+            continue
+    return nodes_set
+
+def display_neighbour_table(node):
+    """
+    Displays the node's neighbor table.
+
+    Parameters:
+        node (Node): node object to display the neighbor table for.
+    """
+
+    print("\n%s Neighbour Table:" % node.name)
+    output = []
+    for neighbour in node.neighbourTable:
+        if node.neighbourTable[neighbour] != math.inf:
+            output.append("{neighbour}|{weight}".format(neighbour=neighbour,weight=node.neighbourTable[neighbour]))
+    output.sort()
+    for o in output:
+        print(o)
+
+def find_connected_records(LSDB, name):
+    """
+    Finds the record connected to the specified node.
+
+    Parameters:
+        LSDB (list): link state database.
+        name (str): name of the specified node.
+
+    Returns:
+        list: List of records connected to the specified node.
+    """
+    copy = LSDB.copy()  # Duplicate the LSDB so that the copy can be modified without affecting the original listing
+    connection_record = []    # Store a list of records that can be accessed
+    name_set = {name}
+    x = True
+
+    while x:         # until no new records are accessed
+        x = False
+        for record in copy:
+            if record.node1 in name_set or record.node2 in name_set:
+                connection_record.append(record)
+                name_set.add(record.node1)
+                name_set.add(record.node2)
+                x = True
+                # avoid duplicate records
+                copy.remove(record)
+    return connection_record
+
+def display_LSDB(LSDB,name):
+    """
+    Displays the link status database record associated with the specified node.
+
+    Parameters:
+        LSDB (list): link status database.
+        name (str): name of the specified node.
+    """
+    # find the record connected to the specified node
+    connection_record = find_connected_records(LSDB,name)
+    output = []
+
+    for record in connection_record:
+        # only print the record that is not inf
+        if record.weight != math.inf:
+            output.append("{node1}|{node2}|{weight}".format(node1=record.node1,node2=record.node2,weight=record.weight))
+    output = [i for i in output if i]
+    output.sort()
+    print("\n%s LSDB:" % name)
+    for o in output:
+        if o != None:
+            print(o)
+
+def display_routing_table(node):
+    """
+    Displays the node's routing table.
+
+    Parameters:
+        node (Node): node object to display the routing table for.
+    """
+    output = []
+    print("\n%s Routing Table:" % node.name)
+    for k in node.routingTable:
+        if node.routingTable[k][1]!=math.inf:
+            output.append("{node1}|{node2}|{weight}".format(node1=k,node2=node.routingTable[k][0], weight =node.routingTable[k][1]))
+    output.sort()
+    for o in output:
+        print(o)
+
+def display_table(optional_nodes, nodes_set, LSDB):
+    """
+    Displays tabular information about a collection of nodes.
+
+    Parameters:
+        optional_nodes (list): list of optional nodes.
+        nodes_set (list): nodes set.
+        LSDB (list): Link State Database.
+
+    Returns:
+        list: updated nodes set.
+    """
+    length = len(optional_nodes)
+    if length > 0:
+        for node in nodes_set:
+            if node.name in optional_nodes:
+                display_neighbour_table(node)
+                display_LSDB(LSDB,node.name)
+                display_routing_table(node)
+    return nodes_set
+
+def parse_input(link_info):
+    """
+    Parses link information, returning a list of nodes, weights, and optional nodes.
+
+    Parameters:
+        link_info (str): link information string.
+
+    Returns:
+        tuple: tuple containing a list of node1, node2, weights and optional nodes.
+    """
+    link = link_info.split(' ')
+    from_to = link[0].split('-')
+    node1 = from_to[0]
+    node2 = from_to[1]
+    weight = int(link[1])
+    optional_nodes = link[-1].split(',') if len(link) == 3 else []
+        
+    return node1, node2, weight, optional_nodes
+
+def add_new_node(node_name, names, nodes):
+    """
+    Adds a new node to the node list and initializes the node's routing table.
+
+    Parameters:
+        node_name (str): name of the new node.
+        names (list): list of node names.
+        nodes (list): list of nodes.
+    """
+    names.append(node_name)
+    nodes.append(Node(node_name))
+    
+    # initialize the routing table
+    for node in nodes:
+        if node.name == node_name:
+            for name in names:
+                if name != node_name:
+                    node.routingTable[name] = ["", math.inf]
+        else:
+            node.routingTable[node_name] = ["", math.inf]
+
+def parser():
+    # [1]: start - LINKSTATE
+    # read the node name
+    node_name = input()
+    LSDB = []
+    node_set = []
+    name_set = []
+
+    # read until LINKSTATE
+    while node_name != "LINKSTATE":
+        # append the node to the node set
+        node_set.append(Node(node_name))
+        name_set.append(node_name)
+        node_name = input()
+    
+    # initialize the routing table
+    for node in node_set:
+        for name in name_set:
+            if node.name != name:
+                node.routingTable[name] = ["",math.inf]
+
+    # [2]: LINKSTATE - UPDATE
+    # read the link information
+    link_info = input()
+    while link_info != "UPDATE":
+        # print(link_info)
+        node1, node2, weight, optional_nodes = parse_input(link_info)
+
+        # update LSDB
+        LSDB.append(Path(node1, node2, weight))
+        path_new = Path(node1, node2, weight)
+
+        # delete duplicate items
+        if len(LSDB) > 1:
+            latest = LSDB[-1]
+            for i in range(len(LSDB)-1):
+                if LSDB[i].node1 == latest.node1 and LSDB[i].node2 == latest.node2:
+                    LSDB[i].weight = latest.weight
+                    LSDB = LSDB[:-1]
+                elif LSDB[i].node1 == latest.node2 and LSDB[i].node2 == latest.node1:
+                    LSDB[i].weight = latest.weight
+                    LSDB = LSDB[:-1]
+
+        # update node information
+        node_set = update_nodeset(node_set, path_new)
+        node_set = update_shortest_path(node_set, LSDB, name_set)
+        # print the table
+        node_set = display_table(optional_nodes, node_set, LSDB)
+
+        link_info = input()
+    
+    update_info = input()
+    # [3] UPDATE - END
+    while update_info != "END":
+        # print("\nprint:" + update_info)
+        node1, node2, weight, optional_nodes = parse_input(update_info)
+        # print("testing")
+        # adding new node
+        if node1 not in name_set:
+            add_new_node(node1, name_set, node_set)
+        if node2 not in name_set:
+            add_new_node(node2, name_set, node_set)
+
+        # when weight is -1, it means the link is down
+        if weight == -1:
+            LSDB.append(Path(node1, node2, math.inf))
+            path_new = Path(node1,node2,math.inf)
+        else:
+            LSDB.append(Path(node1, node2, weight))
+            path_new = Path(node1, node2, weight)
+        
+        # delete duplicate items
+        if len(LSDB) > 1:
+            latest = LSDB[-1]
+            for i in range(len(LSDB)-1):
+                if LSDB[i].node1 == latest.node1 and LSDB[i].node2 == latest.node2:
+                    LSDB[i].weight = latest.weight
+                    LSDB = LSDB[:-1]
+                elif LSDB[i].node1 == latest.node2 and LSDB[i].node2 == latest.node1:
+                    LSDB[i].weight = latest.weight
+                    LSDB = LSDB[:-1]
+
+        # update node information
+        node_set = update_nodeset(node_set, path_new)
+        node_set = update_shortest_path(node_set, LSDB, name_set)
+
+        node_set = display_table(optional_nodes, node_set, LSDB)
+        update_info = input()
+
+    return node_set
+
+nodeset = parser()

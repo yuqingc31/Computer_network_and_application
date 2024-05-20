@@ -1,0 +1,14 @@
+A
+B
+C
+D
+LINKSTATE
+A-B 2
+A-C 4
+B-C 1
+B-D 7
+C-D 3
+UPDATE
+A-B 5
+B-D -1
+END

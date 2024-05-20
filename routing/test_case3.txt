@@ -1,0 +1,68 @@
+A
+B
+C
+D
+E
+F
+G
+H
+I
+J
+K
+L
+M
+N
+O
+P
+Q
+R
+S
+T
+U
+V
+W
+X
+Y
+Z
+AA
+AB
+AC
+AD
+LINKSTATE
+A-B 2
+A-C 4
+B-C 1
+B-D 7
+C-D 3
+D-E 5
+E-F 6
+F-G 2
+G-H 8
+H-I 9
+I-J 3
+J-K 1
+K-L 4
+L-M 7
+M-N 3
+N-O 5
+O-P 2
+P-R 1
+P-Q 6
+Q-R 4
+R-S 8
+S-T 3
+T-W 4
+T-U 2
+U-V 7
+V-W 4
+W-X 5
+X-Y 6
+Y-Z 3
+Z-AA 2
+AA-AB 5
+AB-AC 7
+AC-AD 4
+UPDATE
+A-B 5
+B-D -1
+END
